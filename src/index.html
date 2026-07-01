@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Révisions Collèges</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><div class="topin">
+  <div class="brand"><b>Révisions Collèges</b><span>suivi &amp; priorisation des révisions</span></div>
+  <nav class="tabs">
+    <button data-tab="work" class="on">Révisions</button>
+    <button data-tab="stats">Stats</button>
+  </nav>
+  <div class="grow"></div>
+  <div class="tool">
+    <div class="searchbox">🔍<input id="q" placeholder="Rechercher…"></div>
+    <button class="btn mini" id="exportBtn">Exporter</button>
+    <button class="btn mini" id="importBtn">Importer</button>
+    <button class="btn mini" id="resetBtn">Réinit.</button>
+    <input type="file" id="fileIn" accept="application/json" hidden>
+  </div>
+</div></header>
+
+<div class="wrap">
+  <div class="persist" id="persistNote">⚠ Les données ne peuvent pas être sauvegardées automatiquement ici. <b>Ouvre l'application via son exécutable</b> (ou télécharge tes données avec « Exporter ») pour ne rien perdre.</div>
+
+  <div class="legend">
+    <div class="grp"><b style="color:var(--ink);font-weight:600">Difficulté&nbsp;:</b>
+      <span class="chip"><span class="sw" style="background:var(--l1)"></span>Maîtrisé</span>
+      <span class="chip"><span class="sw" style="background:var(--l2)"></span>À consolider</span>
+      <span class="chip"><span class="sw" style="background:var(--l3)"></span>Intermédiaire</span>
+      <span class="chip"><span class="sw" style="background:var(--l4)"></span>Difficile</span>
+      <span class="chip"><span class="sw" style="background:var(--l5)"></span>Mal su</span>
+      <span class="chip"><span class="sw" style="background:#fff"></span>Non terminée</span>
+    </div>
+    <div class="grp"><b style="color:var(--ink);font-weight:600">Importance&nbsp;:</b>
+      <span class="chip"><span class="dot-imp" style="background:var(--imp-ref)"></span>Référence</span>
+      <span class="chip"><span class="dot-imp" style="background:var(--imp-cyan)"></span>Cyan</span>
+      <span class="chip"><span class="dot-imp" style="background:var(--imp-gris)"></span>Gris</span>
+      <span class="chip"><span class="dot-imp" style="background:var(--imp-blanc)"></span>Blanc</span>
+    </div>
+  </div>
+
+  <!-- VUE FUSIONNÉE : tableau (gauche) + à réviser (sidebar droite) -->
+  <section id="tab-work">
+    <div class="workspace" id="workspace">
+      <!-- Colonne tableau -->
+      <div class="tablecol">
+        <div class="subbar">
+          <div class="segbtns" id="semFilter">
+            <button data-sem="all" class="on">Tous</button>
+            <button data-sem="SEMESTRE 1">S1</button>
+            <button data-sem="SEMESTRE 2">S2</button>
+            <button data-sem="SEMESTRE 3">S3</button>
+            <button data-sem="SEMESTRE 4">S4</button>
+          </div>
+          <span id="tableCount" style="font-size:12px;color:var(--muted)"></span>
+          <div class="grow"></div>
+          <button class="btn mini" id="expandAll">Tout déplier</button>
+          <button class="btn mini" id="collapseAll">Tout replier</button>
+          <button class="btn mini" id="sideToggle" title="Afficher / masquer le panneau de révision">À réviser ⟩</button>
+        </div>
+        <div id="tableBody"></div>
+      </div>
+
+      <!-- Sidebar à réviser -->
+      <aside class="reviseside" id="reviseSide">
+        <div class="revhead">
+          <b>À réviser</b>
+          <span id="reviseInfo" class="revinfo"></span>
+          <div class="grow"></div>
+          <button class="sidehide" id="sideHide" title="Masquer">⟨</button>
+        </div>
+
+        <div class="filterrow">
+          <label><span class="switch"><input type="checkbox" id="inclSecond"><span class="slider"></span></span> Inclure cyan / gris / blanc</label>
+          <label>Objectif du jour <input type="number" id="dayGoal" min="0" value="10"></label>
+        </div>
+
+        <details class="settings" id="settingsBox">
+          <summary>⚙ Intervalles cibles (jours)</summary>
+          <div id="intervalEditor"></div>
+          <button class="btn mini" id="resetIntervals">Valeurs par défaut</button>
+        </details>
+
+        <div id="reviseBody"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- TAB STATS -->
+  <section id="tab-stats" hidden>
+    <div class="statgrid" id="statCards"></div>
+    <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 9px;font-weight:700">Par collège — état actuel des chapitres</h3>
+    <div class="collstat" id="collStats"></div>
+  </section>
+</div>
+
+<div class="note" id="toast"></div>
+
+<script src="seed.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -22,15 +22,21 @@ Ce n'est **pas** un produit distribué : usage perso, hors-ligne, données local
 
 ## 2. Livrable
 
-- **`revisions_colleges.html`** — application autonome, fichier unique, sans
-  dépendance externe (fonctionne hors-ligne). Vanilla JS + CSS, aucune lib.
-- Ouvrir par double-clic dans un navigateur. **Persistance = `localStorage`**
-  du navigateur (les données restent sur la machine de l'utilisateur).
-- En aperçu embarqué (sandbox), `localStorage` peut être bloqué : un bandeau
-  d'avertissement s'affiche alors et invite à télécharger le fichier.
+- Application web **servie par un petit serveur local Python** (`server.py`,
+  bibliothèque standard uniquement, aucune dépendance). Vanilla JS + CSS.
+- Sources modulaires dans **`src/`** : `index.html`, `styles.css`, `seed.js`
+  (constante `SEED`), `app.js`.
+- **Persistance = fichier `donnees.json` sur le disque** (plus de `localStorage`
+  en usage normal). Le JS parle au serveur via `GET/POST /api/data` ; le serveur
+  écrit `donnees.json` en **écriture atomique**. Fallback `localStorage`
+  seulement si le HTML est ouvert sans serveur (`file://`).
+- **Distribution** : PyInstaller produit un `.exe` (Windows) et un `.app`
+  (macOS) via GitHub Actions (`.github/workflows/build.yml`). Le CODE est
+  embarqué dans l'exécutable ; les DONNÉES restent externes (voir §8) → on peut
+  remplacer l'exécutable par une nouvelle version **sans perdre les données**.
 - Boutons : **Exporter** (JSON de sauvegarde), **Importer** (recharge un JSON),
-  **Réinit.** (restaure les données d'origine issues de l'Excel, embarquées
-  dans la constante `SEED`).
+  **Réinit.** (restaure `SEED`).
+- `main.html` = ancienne version mono-fichier (localStorage), conservée en archive.
 
 ### Source de données
 - Fichier d'origine : `COLLEGES.xlsx`, feuille **« Feuille 1 »**.
@@ -82,7 +88,11 @@ Couleurs Excel rattachées à chaque niveau (voir `FAM` dans le parseur) :
 ## 4. Modèle de données
 
 ```
-state = { generated: "YYYY-MM-DD", chapters: [ Chapter ] }
+state = {
+  generated: "YYYY-MM-DD",
+  chapters: [ Chapter ],
+  settings: { intervals: { "1":45, "2":25, "3":15, "4":8, "5":4 } }  // §6
+}
 
 Chapter = {
   id:          "cN",                       // identifiant unique
@@ -183,7 +193,11 @@ Le niveau de la **dernière** session datée détermine l'intervalle cible :
 - Score ≥ 1 → « en retard » (affiché en rouge). Plus le score est grand, plus
   c'est urgent. Ajouter une session remet `jours_écoulés` à 0 et recalcule le
   niveau → le chapitre redescend (ou reste haut si mal su) automatiquement.
-- Ces intervalles sont des constantes réglables (`LEVELS[n].interval`).
+- Ces intervalles sont **éditables par l'utilisateur** (bloc « ⚙ Intervalles
+  cibles » dans la sidebar) et **stockés dans `state.settings.intervals`** →
+  ils sont exportés/importés et conservés lors d'une mise à jour du code.
+  Défauts dans `DEFAULT_INTERVALS`, lecture via `getInterval(n)`, bouton
+  « valeurs par défaut » pour réinitialiser.
 
 **Filtre d'importance** : par **défaut on n'affiche que les chapitres
 `reference`** (bleu). Case à cocher « Inclure cyan / gris / blanc » pour les
@@ -196,15 +210,20 @@ priorités** (hors sessions non finies).
 
 ## 7. Fonctionnalités par onglet
 
-- **Tableau** : groupé semestre → collège → chapitre. Par chapitre : pastille
-  d'importance, titre verbatim, **frise de sessions** (carrés colorés
-  chronologiques, survol = date/niveau/remarque), dernière session, remarque
-  (dernière + `＊N` dépliable). Clic sur un chapitre → panneau d'édition :
-  ajouter/modifier/supprimer des sessions, marquer « en cours », éditer
-  titre/importance/collège/semestre, supprimer le chapitre.
-- **À réviser** : les 3 sections de §6 + case d'inclusion + objectif du jour.
-  Bouton **Réviser** = ajoute une session du jour (demande le niveau) et met
-  tout à jour.
+Deux onglets : **« Révisions »** (tableau + à réviser fusionnés) et **« Stats »**.
+
+- **Révisions** — vue en deux colonnes (`.workspace`) :
+  - *Gauche (`.tablecol`, large)* — le **tableau** : groupé semestre → collège →
+    chapitre. Par chapitre : pastille d'importance, titre verbatim, **frise de
+    sessions** (carrés colorés, survol = date/niveau/remarque), dernière session,
+    remarque (dernière + `＊N` dépliable). Clic sur un chapitre → panneau
+    d'édition : ajouter/modifier/supprimer des sessions, marquer « en cours »,
+    éditer titre/importance/collège/semestre, supprimer le chapitre.
+  - *Droite (`.reviseside`, sidebar ~390px, repliable)* — **à réviser** : les 3
+    sections de §6 + case d'inclusion + objectif du jour + bloc réglable des
+    intervalles cibles. Bouton **Réviser** = ajoute une session du jour (demande
+    le niveau). La sidebar se replie via ⟨ (bouton `sideHide`) et se réaffiche
+    via « À réviser ⟩ » (`sideToggle`). Sous 1200px, elle passe sous le tableau.
 - **Stats** : compteurs (chapitres, révisés, réf. en retard, réf. jamais vus)
   + une barre empilée par collège montrant la répartition des niveaux actuels
   (dernier niveau de chaque chapitre) + les jamais-vus, pour repérer les
@@ -216,15 +235,34 @@ Recherche globale (titre / collège / remarques) dans la barre du haut.
 
 ## 8. Architecture technique de l'appli
 
-- Un seul fichier HTML. Section `<script>` : constante `SEED` (données figées),
-  puis état `state` chargé depuis `localStorage` (clé `colleges_revision_v1`),
-  sinon copie de `SEED`.
-- Fonctions clés : `lastDated`, `score`, `remarks`, `neverSeen`, `hasUnfinished`,
-  `renderTable`, `renderRevise`, `renderStats`, `openDetail` (édition).
-- `save()` écrit dans `localStorage` (try/catch ; bascule sur un bandeau
-  d'avertissement si indisponible). `commit()` = save + re-render.
-- Aucune donnée réseau, aucune lib externe. Couleurs et polices via variables
-  CSS + police système (pour rester hors-ligne).
+- **Sources modulaires** dans `src/` : `index.html` (structure), `styles.css`,
+  `seed.js` (`const SEED`), `app.js` (logique). `server.py` sert `src/` +
+  l'API. Chargement des scripts : `seed.js` puis `app.js` (portée globale de
+  script classique partagée → `SEED` visible dans `app.js`).
+- **Persistance** (`app.js`) :
+  - `load()` *async* : tente `GET /api/data` (→ `serverMode=true`) ; si vide →
+    `SEED` ; sinon fallback `localStorage`, sinon `SEED`.
+  - `save()` : en `serverMode`, `POST /api/data` **débounce 250ms** + flush
+    `sendBeacon` sur `beforeunload` ; sinon `localStorage`. `persistOK` pilote
+    le bandeau d'avertissement.
+  - `migrate(st)` garantit `settings.intervals` (défauts `DEFAULT_INTERVALS`).
+- **Emplacement de `donnees.json`** (fonction `data_dir()` dans `server.py`,
+  conçu pour survivre au remplacement du code) : dev → racine projet ; Windows
+  (exe) → **à côté de l'exécutable** ; macOS (.app) →
+  `~/Library/Application Support/RevisionsColleges/` (hors du bundle !) ; Linux →
+  `~/.local/share/RevisionsColleges/`.
+- Fonctions clés JS : `lastDated`, `score` (via `getInterval`), `remarks`,
+  `neverSeen`, `hasUnfinished`, `renderTable`, `renderRevise`, `renderSettings`,
+  `renderStats`, `openDetail` (édition). `commit()` = `save()` + rerender de la
+  sidebar. Onglets : `curTab ∈ {'work','stats'}`, `render()` rend tableau +
+  sidebar en mode `work`.
+- Serveur : `ThreadingHTTPServer` sur `127.0.0.1`, port 8765 (suivant libre si
+  occupé), écriture atomique (`.tmp` + `os.replace`), validation JSON avant
+  écriture, anti path-traversal sur le statique. Aucune lib externe.
+
+### Fabriquer / distribuer
+Voir `README.md` : build local PyInstaller ou GitHub Actions (Win + Mac),
+distribution à un ami, et mise à jour sans perte de données.
 
 ### Régénérer les données depuis l'Excel
 Le seed a été produit par deux scripts Python (openpyxl) :

@@ -1,0 +1,13 @@
+# Artéfacts de build PyInstaller
+build/
+dist/
+*.spec
+
+# Données locales (ne jamais committer les données perso)
+donnees.json
+donnees.json.tmp
+
+# Divers
+__pycache__/
+*.pyc
+.DS_Store
