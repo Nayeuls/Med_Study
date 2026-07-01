@@ -40,14 +40,15 @@
       <span class="chip"><span class="dot-imp" style="background:var(--imp-cyan)"></span>Cyan</span>
       <span class="chip"><span class="dot-imp" style="background:var(--imp-gris)"></span>Gris</span>
       <span class="chip"><span class="dot-imp" style="background:var(--imp-blanc)"></span>Blanc</span>
+      <label class="incl-mini" title="Inclure les chapitres cyan / gris / blanc (tableau, révision et stats). Décoché = référence uniquement."><input type="checkbox" class="inclSecondary"> inclure cyan/gris/blanc</label>
     </div>
   </div>
 
-  <!-- VUE FUSIONNÉE : tableau (gauche) + à réviser (sidebar droite) -->
-  <section id="tab-work">
-    <div class="workspace" id="workspace">
-      <!-- Colonne tableau -->
-      <div class="tablecol">
+  <!-- VUE : colonne gauche (tableau OU stats) + sidebar « à réviser » PERSISTANTE -->
+  <div class="workspace" id="workspace">
+    <div class="tablecol">
+      <!-- ONGLET RÉVISIONS : tableau -->
+      <section id="tab-work">
         <div class="subbar">
           <div class="segbtns" id="semFilter">
             <button data-sem="all" class="on">Tous</button>
@@ -60,42 +61,42 @@
           <div class="grow"></div>
           <button class="btn mini" id="expandAll">Tout déplier</button>
           <button class="btn mini" id="collapseAll">Tout replier</button>
-          <label class="incl-mini" title="Inclure les chapitres cyan / gris / blanc (tableau, révision et stats)"><input type="checkbox" class="inclSecondary"> + cyan/gris/blanc</label>
-          <button class="btn mini" id="sideToggle" title="Afficher le panneau de révision">⟨ À réviser</button>
+          <button class="btn mini" id="sideToggle" title="Afficher le panneau « À réviser »">⟨ À réviser</button>
         </div>
         <div id="tableBody"></div>
+      </section>
+
+      <!-- ONGLET STATS -->
+      <section id="tab-stats" hidden>
+        <div class="statgrid" id="statCards"></div>
+        <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 9px;font-weight:700">Par collège — état actuel des chapitres</h3>
+        <div class="collstat" id="collStats"></div>
+      </section>
+    </div>
+
+    <!-- Sidebar à réviser (visible dans les deux onglets) -->
+    <aside class="reviseside" id="reviseSide">
+      <div class="revhead">
+        <b>À réviser</b>
+        <span id="reviseInfo" class="revinfo"></span>
+        <div class="grow"></div>
+        <button class="sidehide" id="sideHide" title="Masquer le panneau">⟩</button>
       </div>
 
-      <!-- Sidebar à réviser -->
-      <aside class="reviseside" id="reviseSide">
-        <div class="revhead">
-          <b>À réviser</b>
-          <span id="reviseInfo" class="revinfo"></span>
-          <div class="grow"></div>
-          <button class="sidehide" id="sideHide" title="Masquer le panneau">⟩</button>
-        </div>
+      <div class="filterrow">
+        <label>Objectif du jour <input type="number" id="dayGoal" min="0" value="10"></label>
+        <span id="dayProgress" class="dayprog"></span>
+      </div>
 
-        <div class="filterrow">
-          <label>Objectif du jour <input type="number" id="dayGoal" min="0" value="10"></label>
-        </div>
+      <details class="settings" id="settingsBox">
+        <summary>⚙ Intervalles cibles (jours)</summary>
+        <div id="intervalEditor"></div>
+        <button class="btn mini" id="resetIntervals">Valeurs par défaut</button>
+      </details>
 
-        <details class="settings" id="settingsBox">
-          <summary>⚙ Intervalles cibles (jours)</summary>
-          <div id="intervalEditor"></div>
-          <button class="btn mini" id="resetIntervals">Valeurs par défaut</button>
-        </details>
-
-        <div id="reviseBody"></div>
-      </aside>
-    </div>
-  </section>
-
-  <!-- TAB STATS -->
-  <section id="tab-stats" hidden>
-    <div class="statgrid" id="statCards"></div>
-    <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 9px;font-weight:700">Par collège — état actuel des chapitres</h3>
-    <div class="collstat" id="collStats"></div>
-  </section>
+      <div id="reviseBody"></div>
+    </aside>
+  </div>
 </div>
 
 <div class="note" id="toast"></div>

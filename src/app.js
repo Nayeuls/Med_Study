@@ -108,6 +108,31 @@ function fmtDate(iso){ if(!iso) return '—'; const [y,m,d]=iso.split('-'); retu
 function uid(){ return 'c'+Math.random().toString(36).slice(2,9); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800); }
 
+/* popup de confirmation intégré (remplace confirm() natif). Renvoie une Promise<bool>.
+   Entrée = valider, Échap / clic hors du cadre / Annuler = refuser. */
+function confirmDialog(text, sub, okLabel){
+  okLabel = okLabel || 'Supprimer';
+  return new Promise(resolve=>{
+    const ov=document.createElement('div'); ov.className='modal-ov';
+    ov.innerHTML=`<div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-t">${esc(text)}</div>
+      ${sub?`<div class="modal-sub">${esc(sub)}</div>`:''}
+      <div class="modal-btns">
+        <button class="btn" data-no>Annuler</button>
+        <button class="btn danger" data-yes>${esc(okLabel)}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const close=(v)=>{ ov.remove(); document.removeEventListener('keydown',onKey); resolve(v); };
+    const onKey=e=>{ if(e.key==='Escape') close(false); else if(e.key==='Enter') close(true); };
+    ov.querySelector('[data-no]').onclick=()=>close(false);
+    ov.querySelector('[data-yes]').onclick=()=>close(true);
+    ov.onclick=e=>{ if(e.target===ov) close(false); };
+    document.addEventListener('keydown',onKey);
+    ov.querySelector('[data-yes]').focus();
+  });
+}
+
 /* ---------- onglets (work = tableau+révision fusionnés / stats) ---------- */
 let curTab='work';
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
@@ -237,7 +262,7 @@ function openDetail(id,addNew){
   if(addNew) addSession(ch,d);
 }
 function detailHTML(ch){
-  const sess=ch.sessions.map((s,i)=>sessEditRow(ch,i,s)).join('') || '<div class="empty" style="padding:6px">Aucune session — ajoute la première.</div>';
+  const sess=ch.sessions.map((s,i)=>sessEditRow(ch,i,s,i===ch.sessions.length-1)).join('') || '<div class="empty" style="padding:6px">Aucune session — ajoute la première.</div>';
   return `<div class="sesslist">${sess}</div>
     <button class="btn mini accent" data-newsess>+ Ajouter une session</button>
     <div class="metaedit">
@@ -249,13 +274,18 @@ function detailHTML(ch){
       <button class="btn mini" data-delchap style="margin-left:auto;color:var(--l5);border-color:#f0caca">Supprimer le chapitre</button>
     </div>`;
 }
-function sessEditRow(ch,i,s){
+function sessEditRow(ch,i,s,isLast){
+  // « en cours » n'a de sens que pour la dernière session : les précédentes
+  // sont forcément terminées (une session suivante existe).
+  const encBtn = isLast
+    ? `<button class="encbtn ${s.enCours?'on':''}" data-se title="marquer comme commencée / non terminée">en cours</button>`
+    : '';
   return `<div class="sessrow" data-i="${i}">
     <input type="date" value="${s.date||''}" data-sd>
     <div class="lvlpick">${[1,2,3,4,5].map(l=>`<div class="p ${s.niveau===l?'sel':''}" data-sl="${l}" style="background:${LEVELS[l].color}" title="${LEVELS[l].name}"></div>`).join('')}<div class="p ${!s.niveau?'sel':''}" data-sl="0" style="background:#fff" title="aucun niveau"></div></div>
     <input class="rem" placeholder="remarque…" value="${esc(s.remarque||'')}" data-sr>
     <div style="display:flex;gap:6px;align-items:center">
-      <button class="encbtn ${s.enCours?'on':''}" data-se title="marquer comme commencée / non terminée">en cours</button>
+      ${encBtn}
       <button class="del" data-sx title="supprimer">✕</button>
     </div>
   </div>`;
@@ -266,7 +296,8 @@ function bindDetail(ch,d){
     row.querySelector('[data-sd]').onchange=e=>{ch.sessions[i].date=e.target.value||null;commit();};
     row.querySelectorAll('[data-sl]').forEach(p=>p.onclick=()=>{ch.sessions[i].niveau=+p.dataset.sl||null;commit();refreshDetail(ch,d);});
     row.querySelector('[data-sr]').onchange=e=>{ch.sessions[i].remarque=e.target.value;commit();};
-    row.querySelector('[data-se]').onclick=()=>{ch.sessions[i].enCours=!ch.sessions[i].enCours;commit();refreshDetail(ch,d);};
+    const se=row.querySelector('[data-se]'); // présent uniquement sur la dernière session
+    if(se) se.onclick=()=>{ch.sessions[i].enCours=!ch.sessions[i].enCours;commit();refreshDetail(ch,d);};
     row.querySelector('[data-sx]').onclick=()=>{ch.sessions.splice(i,1);commit();refreshDetail(ch,d);};
   });
   d.querySelector('[data-newsess]').onclick=()=>addSession(ch,d);
@@ -277,9 +308,13 @@ function bindDetail(ch,d){
     ch.semestre=d.querySelector('[data-msem]').value;
     commit(); toast('Chapitre enregistré'); render();
   };
-  d.querySelector('[data-delchap]').onclick=()=>{ if(confirm('Supprimer ce chapitre et ses sessions ?')){ state.chapters=state.chapters.filter(c=>c!==ch); commit(); render(); toast('Chapitre supprimé'); } };
+  d.querySelector('[data-delchap]').onclick=async()=>{
+    const ok=await confirmDialog('Supprimer ce chapitre et toutes ses sessions ?', '« '+ch.titre+' »');
+    if(ok){ state.chapters=state.chapters.filter(c=>c!==ch); commit(); render(); toast('Chapitre supprimé'); }
+  };
 }
 function addSession(ch,d){
+  ch.sessions.forEach(s=>{s.enCours=false;}); // en ajouter une → les précédentes sont terminées
   ch.sessions.push({date:new Date().toISOString().slice(0,10),niveau:3,remarque:'',enCours:false});
   commit(); refreshDetail(ch,d);
 }
@@ -288,13 +323,22 @@ function refreshDetail(ch,d){ d.innerHTML=detailHTML(ch); bindDetail(ch,d);
   const chEl=d.closest('.chapter'); const fresh=document.createElement('div'); fresh.innerHTML=chapterRow(ch);
   chEl.querySelector('.crow').replaceWith(fresh.querySelector('.crow')); bindTable();
 }
-// sauvegarde + met à jour la sidebar (les priorités changent) sans casser les panneaux ouverts
-function commit(){ save(); if(curTab==='work') renderRevise(); }
+// sauvegarde + met à jour la sidebar (toujours visible) sans casser les panneaux ouverts
+function commit(){ save(); renderRevise(); }
 
 /* ---------- sidebar « à réviser » ---------- */
 document.getElementById('dayGoal').oninput=renderRevise;
+// nombre de sessions terminées aujourd'hui (toutes importances confondues)
+function sessionsDoneToday(){
+  const t=new Date().toISOString().slice(0,10);
+  let n=0;
+  for(const ch of state.chapters) for(const s of ch.sessions) if(s.date===t && !s.enCours) n++;
+  return n;
+}
 function renderRevise(){
   const goal=parseInt(document.getElementById('dayGoal').value)||0;
+  const done=sessionsDoneToday();
+  const remaining=Math.max(0, goal-done);
   const pool=state.chapters.filter(ch=>{
     if(!includeSecondary && ch.importance!=='reference') return false;
     if(query){ const hay=(ch.titre+' '+ch.college).toLowerCase(); if(!hay.includes(query)) return false; }
@@ -303,9 +347,12 @@ function renderRevise(){
   const unfinished=pool.filter(hasUnfinished);
   const never=pool.filter(ch=>!hasUnfinished(ch)&&neverSeen(ch));
   const rest=pool.filter(ch=>!hasUnfinished(ch)&&!neverSeen(ch)).sort((a,b)=>score(b)-score(a));
-  let markCount=goal;
+  let markCount=remaining; // on surligne ce qu'il reste à faire pour atteindre l'objectif
   const body=document.getElementById('reviseBody');
   document.getElementById('reviseInfo').textContent = `${pool.length} suivis · ${rest.filter(c=>score(c)>=1).length} en retard`;
+  const prog=document.getElementById('dayProgress');
+  prog.textContent = goal>0 ? `✓ ${done}/${goal} aujourd'hui` : `✓ ${done} aujourd'hui`;
+  prog.classList.toggle('done', goal>0 && done>=goal);
   let html='';
   html+=bucket('À terminer (sessions non finies)', unfinished.map(c=>revCard(c,'unfin',false)));
   html+=bucket('Jamais révisés', never.map((c)=>{const m=markCount-->0;return revCard(c,'never',m);}));
@@ -344,6 +391,7 @@ function quickRevise(id){
   const lvl=prompt('Niveau de la session ?\n1=Maîtrisé  2=À consolider  3=Intermédiaire  4=Difficile  5=Mal su\n(laisser vide = non terminée)','3');
   if(lvl===null) return;
   const n=parseInt(lvl);
+  ch.sessions.forEach(s=>{s.enCours=false;}); // les sessions précédentes sont terminées
   ch.sessions.push({date:new Date().toISOString().slice(0,10),niveau:(n>=1&&n<=5)?n:null,remarque:'',enCours:!(n>=1&&n<=5)});
   commit(); render(); toast('Session ajoutée à « '+ch.titre+' »');
 }
@@ -371,13 +419,16 @@ document.getElementById('resetIntervals').onclick=()=>{
 
 /* ---------- onglet stats ---------- */
 function renderStats(){
-  // par défaut, stats calculées sur les chapitres référence uniquement
+  // par défaut : stats sur les chapitres référence uniquement.
+  // case cochée : on compte TOUS les chapitres (total en retard / jamais vus).
   const chs=state.chapters.filter(c=>includeSecondary||c.importance==='reference');
   const total=chs.length;
   const seen=chs.filter(c=>!neverSeen(c)).length;
-  const overdue=chs.filter(c=>c.importance==='reference'&&!neverSeen(c)&&score(c)>=1).length;
-  const neverRef=chs.filter(c=>c.importance==='reference'&&neverSeen(c)).length;
-  const cards=[['Chapitres',total],['Déjà révisés',seen],['Réf. en retard',overdue],['Réf. jamais vus',neverRef]];
+  const overdue=chs.filter(c=>!neverSeen(c)&&score(c)>=1).length;
+  const neverN=chs.filter(c=>neverSeen(c)).length;
+  const overdueLabel=includeSecondary?'En retard':'Réf. en retard';
+  const neverLabel=includeSecondary?'Jamais vus':'Réf. jamais vus';
+  const cards=[['Chapitres',total],['Déjà révisés',seen],[overdueLabel,overdue],[neverLabel,neverN]];
   document.getElementById('statCards').innerHTML=cards.map(([l,n])=>`<div class="stat"><div class="num">${n}</div><div class="lab">${l}</div></div>`).join('');
   // par collège : répartition du niveau courant (dernière session) + jamais vus
   const byColl={};
@@ -413,8 +464,8 @@ document.getElementById('resetBtn').onclick=()=>{ if(confirm('Réinitialiser aux
 
 /* ---------- rendu & init ---------- */
 function render(){
-  if(curTab==='work'){ renderTable(); renderRevise(); }
-  else renderStats();
+  if(curTab==='work') renderTable(); else renderStats();
+  renderRevise(); // la sidebar « à réviser » est présente dans les deux onglets
 }
 /* battement de cœur : tant que l'onglet est ouvert, on prévient le serveur.
    Quand on ferme l'onglet, les battements cessent → le serveur s'arrête tout
