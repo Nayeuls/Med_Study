@@ -19,11 +19,29 @@ import os
 import socket
 import sys
 import threading
+import time
 import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PING_TOKEN = b"revisions-colleges"
+
+# Auto-extinction : l'interface envoie un « battement de cœur » (~toutes les 3 s)
+# tant qu'elle est ouverte. Sans battement pendant IDLE_TIMEOUT secondes (onglet
+# fermé), le serveur s'arrête tout seul — ce qui permet une appli SANS console.
+# 8 s = réactif à la fermeture, tout en survivant à un rechargement (F5) et à un
+# court passage en arrière-plan.
+IDLE_TIMEOUT = 8
+STATE = {"last": time.time()}
+
+
+def log(*args):
+    """print() sûr : en mode fenêtré (--windowed) sys.stdout peut être None."""
+    try:
+        if sys.stdout:
+            print(*args)
+    except Exception:
+        pass
 
 HOST = "127.0.0.1"
 PORT = 8765          # port par défaut ; on cherche le suivant si occupé
@@ -124,7 +142,11 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/api/ping":
             # sert à reconnaître « notre » appli déjà lancée sur ce port
             return self._send(200, PING_TOKEN)
+        if route == "/api/heartbeat":
+            STATE["last"] = time.time()
+            return self._send(200, b"ok")
         if route == "/api/data":
+            STATE["last"] = time.time()
             raw = read_data()
             if not raw:
                 # pas de fichier encore : le client basculera sur la graine
@@ -135,6 +157,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path.split("?")[0] != "/api/data":
             return self._send(404, b"not found")
+        STATE["last"] = time.time()
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length) if length else b""
         try:
@@ -198,17 +221,29 @@ def main():
     # Si notre appli tourne déjà, on ne lance pas un 2e serveur : on rouvre juste
     # le navigateur sur l'instance existante.
     if our_instance_running(HOST, PORT):
-        print("Application déjà lancée — réouverture du navigateur.")
+        log("Application déjà lancée — réouverture du navigateur.")
         webbrowser.open("http://%s:%d/" % (HOST, PORT))
         return
 
     port = pick_port(HOST, PORT)
     httpd = LocalServer((HOST, port), Handler)
     url = "http://%s:%d/" % (HOST, port)
-    print("Révisions Collèges")
-    print("  Interface : " + url)
-    print("  Données   : " + DATA_FILE)
-    print("  (Ferme cette fenêtre pour quitter l'application.)")
+    log("Révisions Collèges")
+    log("  Interface : " + url)
+    log("  Données   : " + DATA_FILE)
+    log("  (Ferme l'onglet du navigateur pour quitter l'application.)")
+
+    # watchdog : coupe le serveur si l'onglet est fermé (plus de battement de cœur)
+    STATE["last"] = time.time()
+
+    def watchdog():
+        while True:
+            time.sleep(2)
+            if time.time() - STATE["last"] > IDLE_TIMEOUT:
+                httpd.shutdown()
+                return
+
+    threading.Thread(target=watchdog, daemon=True).start()
     # ouvre le navigateur une fois le serveur prêt
     threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

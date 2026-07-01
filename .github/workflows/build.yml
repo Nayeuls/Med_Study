@@ -22,7 +22,7 @@ jobs:
           - os: windows-latest
             label: Windows
             adddata: "src;src"
-            extra: ""
+            extra: "--windowed"
           - os: macos-latest
             label: macOS
             adddata: "src:src"

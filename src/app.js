@@ -126,12 +126,24 @@ document.querySelectorAll('#semFilter button').forEach(b=>b.onclick=()=>{
 document.getElementById('q').oninput=e=>{ query=e.target.value.toLowerCase().trim(); render(); };
 document.getElementById('expandAll').onclick=()=>{document.querySelectorAll('#tableBody details').forEach(d=>d.open=true);};
 document.getElementById('collapseAll').onclick=()=>{document.querySelectorAll('#tableBody details').forEach(d=>d.open=false);};
+
+/* filtre d'importance partagé (tableau + révision + stats), désactivé par défaut.
+   Les cases (classe .inclSecondary) sont synchronisées ; les chapitres non-référence
+   restent dans les données, ils sont seulement masqués/écartés de l'affichage. */
+let includeSecondary=false;
+function setIncludeSecondary(v){
+  includeSecondary=v;
+  document.querySelectorAll('.inclSecondary').forEach(cb=>{ cb.checked=v; });
+  render();
+}
+document.querySelectorAll('.inclSecondary').forEach(cb=>cb.onchange=e=>setIncludeSecondary(e.target.checked));
 // bascule d'affichage de la sidebar
 document.getElementById('sideHide').onclick=()=>document.getElementById('workspace').classList.add('sidehidden');
 document.getElementById('sideToggle').onclick=()=>document.getElementById('workspace').classList.remove('sidehidden');
 
 const SEMS=['SEMESTRE 1','SEMESTRE 2','SEMESTRE 3','SEMESTRE 4'];
 function chapMatches(ch){
+  if(!includeSecondary && ch.importance!=='reference') return false;
   if(curSem!=='all'&&ch.semestre!==curSem) return false;
   if(query){ const hay=(ch.titre+' '+ch.college+' '+ch.sessions.map(s=>s.remarque||'').join(' ')).toLowerCase(); if(!hay.includes(query)) return false; }
   return true;
@@ -280,13 +292,11 @@ function refreshDetail(ch,d){ d.innerHTML=detailHTML(ch); bindDetail(ch,d);
 function commit(){ save(); if(curTab==='work') renderRevise(); }
 
 /* ---------- sidebar « à réviser » ---------- */
-document.getElementById('inclSecond').onchange=renderRevise;
 document.getElementById('dayGoal').oninput=renderRevise;
 function renderRevise(){
-  const incl=document.getElementById('inclSecond').checked;
   const goal=parseInt(document.getElementById('dayGoal').value)||0;
   const pool=state.chapters.filter(ch=>{
-    if(!incl && ch.importance!=='reference') return false;
+    if(!includeSecondary && ch.importance!=='reference') return false;
     if(query){ const hay=(ch.titre+' '+ch.college).toLowerCase(); if(!hay.includes(query)) return false; }
     return true;
   });
@@ -361,7 +371,8 @@ document.getElementById('resetIntervals').onclick=()=>{
 
 /* ---------- onglet stats ---------- */
 function renderStats(){
-  const chs=state.chapters;
+  // par défaut, stats calculées sur les chapitres référence uniquement
+  const chs=state.chapters.filter(c=>includeSecondary||c.importance==='reference');
   const total=chs.length;
   const seen=chs.filter(c=>!neverSeen(c)).length;
   const overdue=chs.filter(c=>c.importance==='reference'&&!neverSeen(c)&&score(c)>=1).length;
@@ -405,9 +416,20 @@ function render(){
   if(curTab==='work'){ renderTable(); renderRevise(); }
   else renderStats();
 }
+/* battement de cœur : tant que l'onglet est ouvert, on prévient le serveur.
+   Quand on ferme l'onglet, les battements cessent → le serveur s'arrête tout
+   seul (voir watchdog dans server.py). Permet une appli sans fenêtre console. */
+function startHeartbeat(){
+  if(!serverMode) return;
+  const beat=()=>{ fetch('/api/heartbeat',{cache:'no-store'}).catch(()=>{}); };
+  setInterval(beat, 3000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) beat(); });
+  beat();
+}
 (async function init(){
   state=await load();
   updatePersistNote();
+  startHeartbeat();
   renderSettings();
   render();
 })();
