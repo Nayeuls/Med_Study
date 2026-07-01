@@ -16,10 +16,14 @@ Aucune dépendance externe : uniquement la bibliothèque standard Python.
 
 import json
 import os
+import socket
 import sys
 import threading
+import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+PING_TOKEN = b"revisions-colleges"
 
 HOST = "127.0.0.1"
 PORT = 8765          # port par défaut ; on cherche le suivant si occupé
@@ -111,7 +115,11 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------- routes -------
     def do_GET(self):
-        if self.path.split("?")[0] == "/api/data":
+        route = self.path.split("?")[0]
+        if route == "/api/ping":
+            # sert à reconnaître « notre » appli déjà lancée sur ce port
+            return self._send(200, PING_TOKEN)
+        if route == "/api/data":
             raw = read_data()
             if not raw:
                 # pas de fichier encore : le client basculera sur la graine
@@ -148,22 +156,49 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(200, body, ctype)
 
 
-def find_port(host, start):
-    import socket
+class LocalServer(ThreadingHTTPServer):
+    # Bind EXCLUSIF : pas de réutilisation d'adresse. Sur Windows, SO_REUSEADDR
+    # laisse plusieurs serveurs s'empiler sur le même port → le navigateur peut
+    # tomber sur la mauvaise instance et écrire donnees.json au mauvais endroit.
+    # On l'interdit pour garantir une seule appli maîtresse par port.
+    allow_reuse_address = False
+
+
+def our_instance_running(host, port):
+    """True si NOTRE application répond déjà sur ce port (endpoint /api/ping)."""
+    try:
+        with urllib.request.urlopen("http://%s:%d/api/ping" % (host, port), timeout=0.5) as r:
+            return r.read(len(PING_TOKEN)) == PING_TOKEN
+    except Exception:
+        return False
+
+
+def port_is_free(host, p):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind((host, p))
+            return True
+        except OSError:
+            return False
+
+
+def pick_port(host, start):
     for p in range(start, start + 50):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                s.bind((host, p))
-                return p
-            except OSError:
-                continue
+        if port_is_free(host, p):
+            return p
     return start
 
 
 def main():
-    port = find_port(HOST, PORT)
-    httpd = ThreadingHTTPServer((HOST, port), Handler)
+    # Si notre appli tourne déjà, on ne lance pas un 2e serveur : on rouvre juste
+    # le navigateur sur l'instance existante.
+    if our_instance_running(HOST, PORT):
+        print("Application déjà lancée — réouverture du navigateur.")
+        webbrowser.open("http://%s:%d/" % (HOST, PORT))
+        return
+
+    port = pick_port(HOST, PORT)
+    httpd = LocalServer((HOST, port), Handler)
     url = "http://%s:%d/" % (HOST, port)
     print("Révisions Collèges")
     print("  Interface : " + url)
