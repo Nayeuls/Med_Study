@@ -86,9 +86,14 @@ def read_data():
 
 
 def write_data(raw_bytes):
-    """Écriture atomique : fichier temporaire puis remplacement."""
+    """Écriture atomique : fichier temporaire puis remplacement.
+
+    Recrée le dossier de destination s'il a été supprimé entre-temps, pour que
+    la sauvegarde regénère toujours donnees.json même si l'utilisateur a effacé
+    le fichier (ou son dossier)."""
     # valide le JSON avant d'écrire (évite de corrompre le fichier)
     parsed = json.loads(raw_bytes.decode("utf-8"))
+    os.makedirs(os.path.dirname(DATA_FILE) or ".", exist_ok=True)
     tmp = DATA_FILE + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(parsed, f, ensure_ascii=False, indent=1)

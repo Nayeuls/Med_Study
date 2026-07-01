@@ -164,19 +164,17 @@ function collegeBlock(g){
   </details>`;
 }
 function chapterRow(ch){
-  const rs=remarks(ch); const lastRem=rs[0];
+  const rs=remarks(ch);
   const l=lastDated(ch);
-  const strip=ch.sessions.map((s,i)=>sessionSquare(ch,i,s)).join('')+
-    `<button class="addmini" data-add="${ch.id}" title="Ajouter une session">+</button>`;
+  const strip=ch.sessions.map((s,i)=>sessionSquare(ch,i,s)).join('') || '<span class="nosess">aucune session</span>';
   const lastCell = l? `${fmtDate(l.date)} ${lvlChip(l.niveau)}` : (hasUnfinished(ch)?'<span style="color:var(--muted)">en cours…</span>':'<span style="color:var(--faint)">jamais révisé</span>');
-  const remCell = lastRem? `<span class="rtext" title="${esc(lastRem.remarque)}">${esc(lastRem.remarque)}</span>${rs.length>1?`<button class="star" data-rem="${ch.id}">＊${rs.length}</button>`:''}` : '<span style="color:var(--faint)">—</span>';
   return `<div class="chapter" data-ch="${ch.id}">
-    <div class="crow">
+    <div class="crow" title="Cliquer pour développer / réduire">
       <span class="imp" title="${IMP_LABEL[ch.importance]}"><span class="dot-imp" style="background:${IMP_COLOR[ch.importance]}"></span></span>
-      <div class="ctitle" data-edit="${ch.id}" title="Cliquer pour éditer"><span class="t">${esc(ch.titre)}</span></div>
+      <div class="ctitle"><span class="t">${esc(ch.titre)}</span></div>
       <div class="strip">${strip}</div>
       <div class="cell-last">${lastCell}</div>
-      <div class="cell-rem">${remCell}</div>
+      <div class="cell-rem">${remarksBlock(rs)}</div>
     </div>
     <div class="detail" hidden></div>
   </div>`;
@@ -190,11 +188,30 @@ function sessionSquare(ch,i,s){
 function lvlChip(lvl){ if(!lvl) return ''; return `<span class="lvlchip" style="background:${LEVELS[lvl].color}">${lvl}</span>`; }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+/* affichage des remarques : dernière visible + badge ＊N dépliant toutes les remarques.
+   Réutilisé dans le tableau et dans la sidebar de révision. */
+function remListHTML(rs){
+  return `<div class="allrem" hidden>${rs.map(r=>`<div class="aremitem"><span class="aremdate">${r.date?fmtDate(r.date):'—'}</span>${esc(r.remarque)}</div>`).join('')}</div>`;
+}
+function remarksBlock(rs){
+  if(!rs.length) return '<span style="color:var(--faint)">—</span>';
+  const more = rs.length>1 ? `<button class="star" data-remmore>＊${rs.length}</button>${remListHTML(rs)}` : '';
+  return `<span class="rtext">${esc(rs[0].remarque)}</span>${more}`;
+}
+function bindRemMore(root){
+  root.querySelectorAll('[data-remmore]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const box=b.parentElement.querySelector('.allrem'); if(box) box.hidden=!box.hidden;
+  });
+}
+
 function bindTable(){
-  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{e.stopPropagation(); openDetail(b.dataset.add,true);});
-  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openDetail(b.dataset.edit,false));
-  document.querySelectorAll('[data-sess]').forEach(b=>b.onclick=()=>{const id=b.dataset.sess.split(':')[0];openDetail(id,false);});
-  document.querySelectorAll('[data-rem]').forEach(b=>b.onclick=e=>{e.stopPropagation(); openDetail(b.dataset.rem,false);});
+  const body=document.getElementById('tableBody');
+  // toute la ligne est cliquable pour développer / réduire le chapitre
+  body.querySelectorAll('.crow').forEach(row=>{
+    row.onclick=()=>openDetail(row.closest('.chapter').dataset.ch,false);
+  });
+  bindRemMore(body); // le badge ＊N gère son propre clic (stopPropagation)
 }
 function chapById(id){ return state.chapters.find(c=>c.id===id); }
 function openDetail(id,addNew){
@@ -285,6 +302,7 @@ function renderRevise(){
   html+=bucket('À revoir — par priorité', rest.map((c)=>{const m=markCount-->0;return revCard(c,'rest',m);}));
   body.innerHTML=html || '<div class="empty">Rien à réviser ici.</div>';
   body.querySelectorAll('[data-rv]').forEach(b=>b.onclick=()=>quickRevise(b.dataset.rv));
+  bindRemMore(body);
 }
 function bucket(title,cards){
   if(!cards.length) return '';
@@ -294,7 +312,10 @@ function revCard(ch,kind,mark){
   const l=lastDated(ch); const dd=l?daysBetween(l.date):null; const sc=score(ch);
   let urg = kind==='unfin'?getVar('--accent'):(kind==='never'?'var(--imp-ref)':LEVELS[Math.min(5,Math.max(1,Math.ceil(Math.min(sc,1)*5)||1))].color);
   urg = kind==='rest'? (l?LEVELS[l.niveau||3].color:'var(--line-strong)') : urg;
-  const rs=remarks(ch); const rem=rs[0]?`<span class="mono" style="color:var(--accent-ink)">✎ ${esc(rs[0].remarque)}</span>`:'';
+  const rs=remarks(ch);
+  const remBlock = rs.length
+    ? `<div class="revrem"><span class="revrtext">✎ ${esc(rs[0].remarque)}</span>${rs.length>1?`<button class="star" data-remmore>＊${rs.length}</button>${remListHTML(rs)}`:''}</div>`
+    : '';
   const meta = kind==='never'? `<span>jamais révisé</span>` :
      kind==='unfin'? `<span>session en cours</span>` :
      `<span class="mono">dernier : ${fmtDate(l.date)} ${lvlChip(l.niveau)}</span><span class="daychip ${sc>=1?'overdue':''}">il y a ${dd} j</span><span class="score">score ${sc.toFixed(2)}</span>`;
@@ -302,7 +323,8 @@ function revCard(ch,kind,mark){
     <span class="urg" style="background:${urg}"></span>
     <div class="rmain">
       <div class="rt">${esc(ch.titre)}</div>
-      <div class="rmeta"><span>${esc(ch.college)} · ${ch.semestre.replace('SEMESTRE','S')}</span>${meta}${rem}</div>
+      <div class="rmeta"><span>${esc(ch.college)} · ${ch.semestre.replace('SEMESTRE','S')}</span>${meta}</div>
+      ${remBlock}
     </div>
     <button class="btn mini accent" data-rv="${ch.id}">Réviser</button>
   </div>`;

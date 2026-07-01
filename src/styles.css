@@ -63,15 +63,15 @@ details[open]>summary .chev{transform:rotate(90deg)}
 .rows{border-top:1px solid var(--line)}
 .chapter{border-bottom:1px solid var(--line)}
 .chapter:last-child{border-bottom:0}
-.crow{display:grid;grid-template-columns:20px 1fr 210px 132px 220px;gap:12px;align-items:center;padding:9px 16px}
+.crow{display:grid;grid-template-columns:20px 1fr 210px 132px 240px;gap:12px;align-items:start;padding:9px 16px;cursor:pointer}
 .crow:hover{background:var(--surface-2)}
-.imp{flex:none}
+.imp{flex:none;margin-top:3px}
 .ctitle{font-size:13.5px;min-width:0}
-.ctitle .t{white-space:normal}
+.ctitle .t{white-space:normal;overflow-wrap:anywhere}
 .strip{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
 .cell-last{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-.cell-rem{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;min-width:0}
-.cell-rem .rtext{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell-rem{font-size:12px;color:var(--muted);display:flex;align-items:flex-start;gap:6px;min-width:0;flex-wrap:wrap}
+.cell-rem .rtext{white-space:normal;overflow-wrap:anywhere}
 .star{flex:none;font-size:11px;color:var(--accent);background:var(--accent-soft);border:0;border-radius:6px;padding:1px 6px;font-weight:650}
 .sq{width:15px;height:15px;border-radius:4px;border:1px solid rgba(0,0,0,.14);cursor:pointer;flex:none}
 .sq.enc{background:repeating-linear-gradient(45deg,#fff,#fff 3px,#cfcfcf 3px,#cfcfcf 6px)!important}
@@ -176,3 +176,13 @@ details[open]>summary .chev{transform:rotate(90deg)}
   .workspace{flex-direction:column}
   .reviseside{width:100%;position:static;max-height:none}
 }
+
+/* remarques : badge ＊N + liste dépliable (tableau & révision) */
+.star{cursor:pointer}
+.nosess{color:var(--faint);font-size:12px}
+.allrem{flex-basis:100%;width:100%;margin-top:5px;border:1px solid var(--line);border-radius:7px;background:var(--surface);padding:5px 8px}
+.aremitem{font-size:12px;color:var(--ink);padding:3px 0;border-bottom:1px dashed var(--line);overflow-wrap:anywhere}
+.aremitem:last-child{border-bottom:0}
+.aremdate{font-family:var(--mono);font-size:11px;color:var(--faint);margin-right:7px}
+.revrem{margin-top:4px}
+.revrtext{font-family:var(--mono);font-size:11.5px;color:var(--accent-ink);overflow-wrap:anywhere;white-space:normal}
