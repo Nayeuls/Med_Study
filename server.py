@@ -16,6 +16,7 @@ Aucune dépendance externe : uniquement la bibliothèque standard Python.
 
 import json
 import os
+import shutil
 import socket
 import sys
 import threading
@@ -63,24 +64,40 @@ def _frozen():
 
 def data_dir():
     """
-    Dossier où vit donnees.json. Choisi pour SURVIVRE au remplacement du code :
-      - dev (non gelé)  : le dossier du script (donnees.json visible dans le projet).
-      - Windows (exe)   : à côté de l'exécutable (.exe isolé → remplacer l'exe garde
-                          donnees.json intact juste à côté).
-      - macOS (.app)    : ~/Library/Application Support/RevisionsColleges — HORS du
-                          bundle .app, sinon remplacer l'app effacerait les données.
-      - Linux           : ~/.local/share/RevisionsColleges.
+    Dossier où vit donnees.json. Choisi pour être INVISIBLE (dossier système caché,
+    hors du dossier de l'exe) et INDÉPENDANT de l'exécutable : on peut remplacer,
+    déplacer ou renommer l'exe, les données restent au même endroit.
+      - dev (non gelé) : le dossier du projet (donnees.json visible pour bidouiller).
+      - Windows (exe)  : %APPDATA%\\RevisionsColleges\\ (dossier AppData, masqué).
+      - macOS (.app)   : ~/Library/Application Support/RevisionsColleges/.
+      - Linux          : ~/.local/share/RevisionsColleges/.
     """
     if not _frozen():
         return os.path.dirname(os.path.abspath(__file__))
     if sys.platform.startswith("win"):
-        return os.path.dirname(sys.executable)
-    if sys.platform == "darwin":
+        base = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "RevisionsColleges")
+    elif sys.platform == "darwin":
         base = os.path.expanduser("~/Library/Application Support/RevisionsColleges")
     else:
         base = os.path.expanduser("~/.local/share/RevisionsColleges")
     os.makedirs(base, exist_ok=True)
     return base
+
+
+def migrate_legacy_data():
+    """Au 1er lancement : si aucune donnée dans le nouvel emplacement caché mais
+    qu'un donnees.json existe à côté de l'exe (ancien emplacement), on le récupère.
+    Transition transparente pour ceux qui avaient déjà des données."""
+    if not _frozen() or os.path.exists(DATA_FILE):
+        return
+    legacy = os.path.join(os.path.dirname(sys.executable), DATA_NAME)
+    if os.path.exists(legacy):
+        try:
+            os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+            shutil.copy2(legacy, DATA_FILE)
+            log("Données récupérées depuis l'ancien emplacement : " + legacy)
+        except Exception as e:
+            log("Migration ignorée : %s" % e)
 
 
 def static_dir():
@@ -225,6 +242,7 @@ def main():
         webbrowser.open("http://%s:%d/" % (HOST, PORT))
         return
 
+    migrate_legacy_data()  # récupère d'éventuelles données de l'ancien emplacement
     port = pick_port(HOST, PORT)
     httpd = LocalServer((HOST, port), Handler)
     url = "http://%s:%d/" % (HOST, port)

@@ -35,18 +35,23 @@ recompiler.
 
 Les données vivent **hors du code**, pour survivre à une mise à jour :
 
+Les données vivent dans un **dossier système caché, indépendant de l'exe** :
+on peut remplacer, déplacer ou renommer l'exécutable, les données restent.
+
 | Contexte           | Emplacement de `donnees.json`                              |
 |--------------------|------------------------------------------------------------|
 | Développement      | racine du projet                                           |
-| Windows (`.exe`)   | **à côté de l'exécutable**                                  |
+| Windows (`.exe`)   | `%APPDATA%\RevisionsColleges\` (dossier AppData, **masqué**) |
 | macOS (`.app`)     | `~/Library/Application Support/RevisionsColleges/`          |
 | Linux              | `~/.local/share/RevisionsColleges/`                        |
 
+L'exe peut donc être **seul sur le Bureau**, sans fichier de données visible.
 `SEED` (dans `seed.js`) ne sert qu'au **premier lancement** et au bouton
 **Réinit.**. Dès que `donnees.json` existe, il fait foi.
 
-> ⚠ Windows : évite de placer l'exe dans `C:\Program Files\…` (dossier protégé
-> en écriture). Un dossier perso (Bureau, Documents) convient.
+`migrate_legacy_data()` : au 1ᵉʳ lancement, si aucune donnée n'existe encore dans
+l'emplacement caché mais qu'un `donnees.json` traîne à côté de l'exe (ancienne
+version), il est **récupéré automatiquement**.
 
 ## Fabriquer les exécutables
 

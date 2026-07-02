@@ -246,11 +246,13 @@ Recherche globale (titre / collège / remarques) dans la barre du haut.
     `sendBeacon` sur `beforeunload` ; sinon `localStorage`. `persistOK` pilote
     le bandeau d'avertissement.
   - `migrate(st)` garantit `settings.intervals` (défauts `DEFAULT_INTERVALS`).
-- **Emplacement de `donnees.json`** (fonction `data_dir()` dans `server.py`,
-  conçu pour survivre au remplacement du code) : dev → racine projet ; Windows
-  (exe) → **à côté de l'exécutable** ; macOS (.app) →
-  `~/Library/Application Support/RevisionsColleges/` (hors du bundle !) ; Linux →
-  `~/.local/share/RevisionsColleges/`.
+- **Emplacement de `donnees.json`** (fonction `data_dir()` dans `server.py`) :
+  dossier système **caché**, hors du dossier de l'exe et **indépendant** de
+  celui-ci (on peut remplacer/déplacer/renommer l'exe, les données restent) :
+  dev → racine projet ; Windows (exe) → `%APPDATA%\RevisionsColleges\` (masqué) ;
+  macOS (.app) → `~/Library/Application Support/RevisionsColleges/` ; Linux →
+  `~/.local/share/RevisionsColleges/`. `migrate_legacy_data()` récupère au 1ᵉʳ
+  lancement d'éventuelles données situées à côté de l'exe (ancien emplacement).
 - Fonctions clés JS : `lastDated`, `score` (via `getInterval`), `remarks`,
   `neverSeen`, `hasUnfinished`, `renderTable`, `renderRevise`, `renderSettings`,
   `renderStats`, `openDetail` (édition). `commit()` = `save()` + rerender de la
