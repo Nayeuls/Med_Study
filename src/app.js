@@ -298,8 +298,13 @@ function bindDetail(ch,d){
     row.querySelectorAll('[data-sl]').forEach(p=>p.onclick=()=>{const s=ch.sessions[i]; s.niveau=+p.dataset.sl; s.enCours=false; commit(); refreshDetail(ch,d);});
     row.querySelector('[data-sr]').onchange=e=>{ch.sessions[i].remarque=e.target.value;commit();};
     const se=row.querySelector('[data-se]'); // présent uniquement sur la dernière session
-    // « en cours » => pas de niveau (soit noté 1-5, soit en cours)
-    if(se) se.onclick=()=>{const s=ch.sessions[i]; s.enCours=!s.enCours; if(s.enCours) s.niveau=null; commit(); refreshDetail(ch,d);};
+    // « en cours » ⇄ terminé. En terminant, on demande le niveau (comme « Réviser »).
+    if(se) se.onclick=()=>{
+      const s=ch.sessions[i];
+      if(s.enCours){ const r=askSessionLevel(); if(r.cancelled||!r.level) return; s.niveau=r.level; s.enCours=false; }
+      else { s.enCours=true; s.niveau=null; }
+      commit(); refreshDetail(ch,d);
+    };
     row.querySelector('[data-sx]').onclick=()=>{ch.sessions.splice(i,1);commit();refreshDetail(ch,d);};
   });
   d.querySelector('[data-newsess]').onclick=()=>addSession(ch,d);
@@ -388,13 +393,20 @@ function revCard(ch,kind,mark){
     <button class="btn mini accent" data-rv="${ch.id}">Réviser</button>
   </div>`;
 }
+// demande le niveau d'une session (partagé par « Réviser » et la fin d'un « en cours »)
+// renvoie {cancelled:true} si annulé, sinon {level:1..5|null} (null = laissé vide)
+function askSessionLevel(){
+  const lvl=prompt('Niveau de la session ?\n1=Maîtrisé  2=À consolider  3=Intermédiaire  4=Difficile  5=Mal su\n(laisser vide = non terminée / en cours)','3');
+  if(lvl===null) return {cancelled:true};
+  const n=parseInt(lvl);
+  return {cancelled:false, level:(n>=1&&n<=5)?n:null};
+}
 function quickRevise(id){
   const ch=chapById(id);
-  const lvl=prompt('Niveau de la session ?\n1=Maîtrisé  2=À consolider  3=Intermédiaire  4=Difficile  5=Mal su\n(laisser vide = non terminée)','3');
-  if(lvl===null) return;
-  const n=parseInt(lvl);
+  const r=askSessionLevel();
+  if(r.cancelled) return;
   ch.sessions.forEach(s=>{s.enCours=false;}); // les sessions précédentes sont terminées
-  ch.sessions.push({date:new Date().toISOString().slice(0,10),niveau:(n>=1&&n<=5)?n:null,remarque:'',enCours:!(n>=1&&n<=5)});
+  ch.sessions.push({date:new Date().toISOString().slice(0,10),niveau:r.level,remarque:'',enCours:!r.level});
   commit(); render(); toast('Session ajoutée à « '+ch.titre+' »');
 }
 
