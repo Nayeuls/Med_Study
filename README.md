@@ -91,10 +91,10 @@ Résultat dans `dist/`.
        quarantaine via le Terminal : `xattr -cr /chemin/vers/Revisions.app`.
 3. Il double-clique, ajoute ses sessions → tout est écrit dans son `donnees.json`.
 
-> **Architecture Mac** : le `.app` est compilé en **x86_64 (Intel)** — il tourne
-> nativement sur les Mac Intel, et sur les Mac Apple Silicon via **Rosetta**
-> (macOS propose de l'installer automatiquement au 1ᵉʳ lancement). Un `.app` en
-> arm64 donnerait « n'est pas prise en charge par ce Mac » sur un Mac Intel.
+> **Architecture Mac** : le `.app` est compilé en **universal2** — natif à la
+> fois sur Mac **Intel (x86_64)** et **Apple Silicon (arm64)**, sans Rosetta.
+> (Un `.app` arm64-only donne « n'est pas prise en charge par ce Mac » sur un
+> Mac Intel — c'est pour ça qu'on build en universal2.)
 
 ### Mettre à jour sans perdre les données
 

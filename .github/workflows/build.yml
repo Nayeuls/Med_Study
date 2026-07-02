@@ -23,12 +23,13 @@ jobs:
             label: Windows
             adddata: "src;src"
             extra: "--windowed"
-          # macos-13 = runner Intel (x86_64). Le binaire x86_64 tourne PARTOUT :
-          # nativement sur Mac Intel, et via Rosetta (auto) sur Mac Apple Silicon.
-          - os: macos-13
+          # Runner Apple Silicon (abondant) + build UNIVERSAL2 : le binaire est
+          # natif à la fois Intel (x86_64) ET Apple Silicon (arm64) → tourne
+          # partout, sans Rosetta, sans dépendre des rares runners Intel.
+          - os: macos-latest
             label: macOS
             adddata: "src:src"
-            extra: "--windowed"
+            extra: "--windowed --target-arch universal2"
 
     steps:
       - uses: actions/checkout@v4
