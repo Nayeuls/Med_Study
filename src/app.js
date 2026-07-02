@@ -363,14 +363,15 @@ function renderRevise(){
   let html='';
   html+=bucket('À terminer (sessions non finies)', unfinished.map(c=>revCard(c,'unfin',false)));
   html+=bucket('Jamais révisés', never.map((c)=>{const m=markCount-->0;return revCard(c,'never',m);}));
-  html+=bucket('À revoir — par priorité', rest.map((c)=>{const m=markCount-->0;return revCard(c,'rest',m);}));
+  html+=bucket('À revoir — par priorité', rest.map((c)=>{const m=markCount-->0;return revCard(c,'rest',m);}), false);
   body.innerHTML=html || '<div class="empty">Rien à réviser ici.</div>';
   body.querySelectorAll('[data-rv]').forEach(b=>b.onclick=()=>quickRevise(b.dataset.rv));
   bindRemMore(body);
 }
-function bucket(title,cards){
+function bucket(title,cards,showCount=true){
   if(!cards.length) return '';
-  return `<div class="bucket"><h3>${title}<span class="n">${cards.length}</span></h3>${cards.join('')}</div>`;
+  const n = showCount ? `<span class="n">${cards.length}</span>` : '';
+  return `<div class="bucket"><h3>${title}${n}</h3>${cards.join('')}</div>`;
 }
 function revCard(ch,kind,mark){
   const l=lastDated(ch); const dd=l?daysBetween(l.date):null; const sc=score(ch);
