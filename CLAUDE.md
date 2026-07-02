@@ -113,9 +113,14 @@ Session = {
 }
 ```
 
-Chiffres actuels du seed : **813 chapitres**, **923 sessions** (doublons de
-fusion inclus, voir §5), **34 collèges**. Importance : reference 396, blanc 350,
-cyan 57, gris 10.
+Chiffres actuels du seed : **813 chapitres**, **879 sessions**, **34 collèges**.
+Importance : reference 396, blanc 350, cyan 57, gris 10.
+
+**Modèle de session simplifié** : une session est soit **notée 1-5** (terminée),
+soit **`enCours:true`** (en cours, `niveau:null`). Les deux sont mutuellement
+exclusifs. Il n'y a plus de « session blanche notée null mais terminée » (le
+sélecteur de difficulté n'a plus d'option blanche). Seule exception résiduelle
+dans le seed : 1 session datée sans niveau et non-en-cours (`chapitre 9 (162)`).
 
 ---
 
@@ -148,15 +153,20 @@ Le nom du collège n'apparaît que sur la 1re ligne de ses chapitres → on le
 - Cellule **texte commençant par une date** (`jj/mm/aa[aa]`) → on extrait la
   date → session `{date, niveau=couleur, remarque=reste du texte}`.
   Ex. `24/11/25 (voir fiche compar.)`.
-- Cellule **texte sans date en tête** → entrée `{date:null, remarque=texte}`.
-  Ex. `revoir`, `pas fait chez l'enfant`, `PRIO`.
+- Cellule **texte sans date en tête** (remarque seule) → la remarque est
+  **rattachée à la session datée précédente** (souvent terminée), pas une session
+  à part. Ex. `revoir`, `a faire`. **Si aucune session datée avant** (la remarque
+  est la 1re entrée du chapitre) → devient une session **`enCours:true`** sans
+  date, portant la remarque. Ex. `pas fait chez l'enfant`, `cours du 21/1`.
+  (Correctif appliqué au seed : 44 remarques rapatriées, 23 passées en cours.)
 
 ### Remarques
 - Le champ **remarque est au niveau du chapitre** à l'affichage, mais stocké
   **par session** (chaque session a sa `remarque`). Affichage (voir §7) :
   dernière remarque visible + badge `＊N` dépliable listant toutes les remarques.
-- **`PRIO`** (31 cellules, semestre 1) → traité comme **simple texte de remarque**
-  (décision validée). Pas de comportement spécial de priorisation.
+- **`PRIO`** (31 cellules, semestre 1) → traité comme une remarque : rattachée à
+  la session datée précédente (20 cas) ou, si 1re entrée du chapitre, session
+  `enCours` portant « PRIO » (11 cas). Pas de comportement spécial de priorisation.
 - Cas limites connus dans l'Excel d'origine :
   - **J47** `19/11/25 (col) 22/11/25 (endometre)` : deux dates dans une seule
     cellule. Gardé en une session (date 19/11/25) + texte complet en remarque.
@@ -285,7 +295,12 @@ Si l'utilisateur repart d'un nouvel Excel, refaire tourner ces deux étapes.
 - Sessions fusionnées → comptent **pour tous les chapitres recouverts**.
 - Champ remarque : **par chapitre**, montre la **dernière** remarque, `＊N`
   dépliable pour toutes les remarques des sessions.
-- **PRIO** → simple texte de remarque.
+- **PRIO** → remarque rattachée à la session précédente (ou session en cours si
+  1re entrée).
+- **Remarque sans date** → rattachée à la **session datée précédente** ; si
+  aucune → session **`enCours`** portant la remarque.
+- **Session : niveau 1-5 XOR `enCours`** (plus d'option « blanc / aucun niveau » ;
+  choisir un niveau retire « en cours » et inversement).
 - Liste à réviser : **non finies → jamais vus → score**.
 - Exclusion par défaut de **cyan/gris/blanc**, case pour les inclure.
 - Titres de chapitres conservés **verbatim**.

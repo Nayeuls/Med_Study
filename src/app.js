@@ -282,7 +282,7 @@ function sessEditRow(ch,i,s,isLast){
     : '';
   return `<div class="sessrow" data-i="${i}">
     <input type="date" value="${s.date||''}" data-sd>
-    <div class="lvlpick">${[1,2,3,4,5].map(l=>`<div class="p ${s.niveau===l?'sel':''}" data-sl="${l}" style="background:${LEVELS[l].color}" title="${LEVELS[l].name}"></div>`).join('')}<div class="p ${!s.niveau?'sel':''}" data-sl="0" style="background:#fff" title="aucun niveau"></div></div>
+    <div class="lvlpick">${[1,2,3,4,5].map(l=>`<div class="p ${s.niveau===l?'sel':''}" data-sl="${l}" style="background:${LEVELS[l].color}" title="${LEVELS[l].name}"></div>`).join('')}</div>
     <input class="rem" placeholder="remarque…" value="${esc(s.remarque||'')}" data-sr>
     <div style="display:flex;gap:6px;align-items:center">
       ${encBtn}
@@ -294,10 +294,12 @@ function bindDetail(ch,d){
   d.querySelectorAll('.sessrow').forEach(row=>{
     const i=+row.dataset.i;
     row.querySelector('[data-sd]').onchange=e=>{ch.sessions[i].date=e.target.value||null;commit();};
-    row.querySelectorAll('[data-sl]').forEach(p=>p.onclick=()=>{ch.sessions[i].niveau=+p.dataset.sl||null;commit();refreshDetail(ch,d);});
+    // choisir un niveau 1-5 => session terminée (on retire « en cours »)
+    row.querySelectorAll('[data-sl]').forEach(p=>p.onclick=()=>{const s=ch.sessions[i]; s.niveau=+p.dataset.sl; s.enCours=false; commit(); refreshDetail(ch,d);});
     row.querySelector('[data-sr]').onchange=e=>{ch.sessions[i].remarque=e.target.value;commit();};
     const se=row.querySelector('[data-se]'); // présent uniquement sur la dernière session
-    if(se) se.onclick=()=>{ch.sessions[i].enCours=!ch.sessions[i].enCours;commit();refreshDetail(ch,d);};
+    // « en cours » => pas de niveau (soit noté 1-5, soit en cours)
+    if(se) se.onclick=()=>{const s=ch.sessions[i]; s.enCours=!s.enCours; if(s.enCours) s.niveau=null; commit(); refreshDetail(ch,d);};
     row.querySelector('[data-sx]').onclick=()=>{ch.sessions.splice(i,1);commit();refreshDetail(ch,d);};
   });
   d.querySelector('[data-newsess]').onclick=()=>addSession(ch,d);
