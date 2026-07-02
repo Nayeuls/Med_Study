@@ -64,19 +64,20 @@ def _frozen():
 
 def data_dir():
     """
-    Dossier où vit donnees.json. Choisi pour être INVISIBLE (dossier système caché,
-    hors du dossier de l'exe) et INDÉPENDANT de l'exécutable : on peut remplacer,
-    déplacer ou renommer l'exe, les données restent au même endroit.
-      - dev (non gelé) : le dossier du projet (donnees.json visible pour bidouiller).
-      - Windows (exe)  : %APPDATA%\\RevisionsColleges\\ (dossier AppData, masqué).
-      - macOS (.app)   : ~/Library/Application Support/RevisionsColleges/.
+    Dossier où vit donnees.json :
+      - dev (non gelé) : dossier du projet.
+      - Windows (exe)  : À CÔTÉ de l'exécutable (donnees.json visible dans le même
+                         dossier ; remplacer l'exe le laisse intact juste à côté).
+      - macOS (.app)   : ~/Library/Application Support/RevisionsColleges/ — un .app
+                         est un DOSSIER ; y ranger les données les effacerait au
+                         remplacement du bundle, on utilise donc ce chemin fixe.
       - Linux          : ~/.local/share/RevisionsColleges/.
     """
     if not _frozen():
         return os.path.dirname(os.path.abspath(__file__))
     if sys.platform.startswith("win"):
-        base = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "RevisionsColleges")
-    elif sys.platform == "darwin":
+        return os.path.dirname(sys.executable)
+    if sys.platform == "darwin":
         base = os.path.expanduser("~/Library/Application Support/RevisionsColleges")
     else:
         base = os.path.expanduser("~/.local/share/RevisionsColleges")
@@ -85,19 +86,25 @@ def data_dir():
 
 
 def migrate_legacy_data():
-    """Au 1er lancement : si aucune donnée dans le nouvel emplacement caché mais
-    qu'un donnees.json existe à côté de l'exe (ancien emplacement), on le récupère.
-    Transition transparente pour ceux qui avaient déjà des données."""
+    """Au 1er lancement : si l'emplacement courant n'a pas encore de donnees.json
+    mais qu'un ancien existe ailleurs (autre version de l'appli), on le récupère.
+    Rend le changement d'emplacement transparent, dans un sens comme dans l'autre."""
     if not _frozen() or os.path.exists(DATA_FILE):
         return
-    legacy = os.path.join(os.path.dirname(sys.executable), DATA_NAME)
-    if os.path.exists(legacy):
-        try:
-            os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-            shutil.copy2(legacy, DATA_FILE)
-            log("Données récupérées depuis l'ancien emplacement : " + legacy)
-        except Exception as e:
-            log("Migration ignorée : %s" % e)
+    candidates = [os.path.join(os.path.dirname(sys.executable), DATA_NAME)]  # à côté de l'exe
+    if sys.platform.startswith("win"):
+        appdata = os.environ.get("APPDATA")
+        if appdata:  # ancienne version qui rangeait dans %APPDATA%
+            candidates.append(os.path.join(appdata, "RevisionsColleges", DATA_NAME))
+    for legacy in candidates:
+        if os.path.abspath(legacy) != os.path.abspath(DATA_FILE) and os.path.exists(legacy):
+            try:
+                os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+                shutil.copy2(legacy, DATA_FILE)
+                log("Données récupérées depuis : " + legacy)
+                return
+            except Exception as e:
+                log("Migration ignorée : %s" % e)
 
 
 def static_dir():

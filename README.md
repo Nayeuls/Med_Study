@@ -35,23 +35,26 @@ recompiler.
 
 Les données vivent **hors du code**, pour survivre à une mise à jour :
 
-Les données vivent dans un **dossier système caché, indépendant de l'exe** :
-on peut remplacer, déplacer ou renommer l'exécutable, les données restent.
-
 | Contexte           | Emplacement de `donnees.json`                              |
 |--------------------|------------------------------------------------------------|
 | Développement      | racine du projet                                           |
-| Windows (`.exe`)   | `%APPDATA%\RevisionsColleges\` (dossier AppData, **masqué**) |
+| Windows (`.exe`)   | **à côté de l'exécutable** (même dossier, fichier visible) |
 | macOS (`.app`)     | `~/Library/Application Support/RevisionsColleges/`          |
 | Linux              | `~/.local/share/RevisionsColleges/`                        |
 
-L'exe peut donc être **seul sur le Bureau**, sans fichier de données visible.
+Sur Windows, `donnees.json` apparaît dans le même dossier que l'exe. Remplacer
+l'exe (glisser le nouveau par-dessus l'ancien, au même endroit) laisse le
+`donnees.json` intact à côté → le nouvel exe le relit. Garder l'exe et son
+`donnees.json` **ensemble** (déplacer l'exe seul laisse les données derrière).
+Sur macOS, un `.app` étant un dossier, les données vont dans un chemin fixe
+(Application Support) pour survivre au remplacement du bundle.
+
 `SEED` (dans `seed.js`) ne sert qu'au **premier lancement** et au bouton
 **Réinit.**. Dès que `donnees.json` existe, il fait foi.
 
-`migrate_legacy_data()` : au 1ᵉʳ lancement, si aucune donnée n'existe encore dans
-l'emplacement caché mais qu'un `donnees.json` traîne à côté de l'exe (ancienne
-version), il est **récupéré automatiquement**.
+`migrate_legacy_data()` : au 1ᵉʳ lancement, si l'emplacement courant n'a pas de
+`donnees.json` mais qu'un ancien existe ailleurs (ex. `%APPDATA%`), il est
+**récupéré automatiquement**.
 
 ## Fabriquer les exécutables
 
