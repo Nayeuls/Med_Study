@@ -23,7 +23,9 @@ jobs:
             label: Windows
             adddata: "src;src"
             extra: "--windowed"
-          - os: macos-latest
+          # macos-13 = runner Intel (x86_64). Le binaire x86_64 tourne PARTOUT :
+          # nativement sur Mac Intel, et via Rosetta (auto) sur Mac Apple Silicon.
+          - os: macos-13
             label: macOS
             adddata: "src:src"
             extra: "--windowed"
@@ -43,7 +45,7 @@ jobs:
 
       # macOS : on empaquette le .app dans un zip pour préserver la structure du bundle
       - name: Zipper le .app (macOS)
-        if: matrix.os == 'macos-latest'
+        if: matrix.label == 'macOS'
         run: |
           cd dist
           ditto -c -k --sequesterRsrc --keepParent Revisions.app Revisions-macOS.zip

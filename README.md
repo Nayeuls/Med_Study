@@ -87,7 +87,14 @@ Résultat dans `dist/`.
      *Informations complémentaires* → *Exécuter quand même*.
    - **macOS** : « app d'un développeur non identifié » → **clic droit → Ouvrir**
      (puis *Ouvrir*). À refaire une seule fois.
+     - Si macOS dit plutôt « **endommagée** » ou bloque, retirer la mise en
+       quarantaine via le Terminal : `xattr -cr /chemin/vers/Revisions.app`.
 3. Il double-clique, ajoute ses sessions → tout est écrit dans son `donnees.json`.
+
+> **Architecture Mac** : le `.app` est compilé en **x86_64 (Intel)** — il tourne
+> nativement sur les Mac Intel, et sur les Mac Apple Silicon via **Rosetta**
+> (macOS propose de l'installer automatiquement au 1ᵉʳ lancement). Un `.app` en
+> arm64 donnerait « n'est pas prise en charge par ce Mac » sur un Mac Intel.
 
 ### Mettre à jour sans perdre les données
 
